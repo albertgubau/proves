@@ -199,14 +199,12 @@ class SineModel_frame:
             # Writer
             awrite = es.MonoWriter(filename=outputFile, sampleRate=fs)
 
-            y = np.array(0)  # initialize output array
+            y = np.array([])  # initialize output array
 
             frames = 0
 
             for frame in es.FrameGenerator(audio=x, frameSize=N, hopSize=H):
 
-                if frames ==14:
-                    print(frame)
                 # Analysis (with FFT and Windowing)
                 infft = fft(w(frame))
 
