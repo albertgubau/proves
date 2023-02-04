@@ -199,15 +199,14 @@ class SineModel_frame:
             # Writer
             awrite = es.MonoWriter(filename=outputFile, sampleRate=fs)
 
-            y = np.array([])  # initialize output array
-
             frames = 0
+
+            y = np.array([])  # initialize output array
 
             for frame in es.FrameGenerator(audio=x, frameSize=N, hopSize=H):
 
                 # Analysis (with FFT and Windowing)
                 infft = fft(w(frame))
-
 
                 sine_anal = sineAnal(infft)
 

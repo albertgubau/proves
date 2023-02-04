@@ -5,6 +5,8 @@ import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore, QtGui
 from PyQt5.QtWidgets import QApplication, QWidget
 
+import matplotlib.pyplot as plt
+
 import struct
 import pyaudio
 import wave
@@ -22,10 +24,10 @@ sineAnal = es.SineModelAnal(sampleRate=44100,
                             freqDevOffset=10,
                             freqDevSlope=0.001)
 
-sineSynth = es.SineModelSynth(sampleRate=44100, fftSize=2048, hopSize=512)
+sineSynth = es.SineModelSynth(sampleRate=44100, fftSize=2048, hopSize=522)
 
 ifft = es.IFFT(size=2048)
-overl = es.OverlapAdd(frameSize=2048, hopSize=512)
+overl = es.OverlapAdd(frameSize=2048, hopSize=522)
 
 awrite = es.MonoWriter(filename='output.wav', sampleRate=44100)
 
@@ -127,7 +129,7 @@ class AudioStream(object):
         # Waveform and Spectrum x-axis points (bins and Hz)
         self.z = np.arange(0, self.CHUNK)
         # Waveform and Spectrum x-axis points (bins and Hz)
-        self.j = np.arange(0, self.CHUNK // 4)
+        self.j = np.arange(0, 522)
         # Half spectrum because of essentia computation
         self.f = np.linspace(0, self.RATE // 2, self.CHUNK // 2 + 1)  # 1025 numbers from 0 to 22050 (frequencies)
         self.result = np.array([])
@@ -164,9 +166,9 @@ class AudioStream(object):
 
     def update(self):
         
-        self.previous_wf_data1 = self.wf_data[512:2047]
-        self.previous_wf_data2 = self.wf_data[1024:2047]
-        self.previous_wf_data3 = self.wf_data[1536:2047]
+        self.previous_wf_data1 = self.wf_data[511:2048]
+        self.previous_wf_data2 = self.wf_data[1023:2048]
+        self.previous_wf_data3 = self.wf_data[1535:2048]
 
         # Get the data from the mic
         self.wf_data = self.stream.read(self.CHUNK)
@@ -175,9 +177,7 @@ class AudioStream(object):
         self.wf_data = np.array(
             struct.unpack(str(self.CHUNK) + 'f', self.wf_data))  # str(self.CHUNK) + 'h' denotes size and type of data
 
-
         self.prova = np.append(self.prova, self.wf_data)
-        print("Inici data: " + str(self.prova[len(self.prova)-1]) + "   Final data: " + str(self.wf_data[0]))
 
         # Aqui hem llegit un frame de 2048 samples provinent del micro, el plotegem
         self.set_plotdata(name='waveform', data_x=self.x, data_y=self.wf_data)
@@ -201,7 +201,6 @@ class AudioStream(object):
 
         out = overl(ifft(fft_synth))  # Tenim un frame de 512 samples
 
-        print("Inici out: " + str(out[0]) + "   Final out: " + str(out[511]))
         self.set_plotdata(name='out', data_x=self.j, data_y=out)
 
         sp_data = np.abs(fft(self.wf_data))
@@ -209,44 +208,52 @@ class AudioStream(object):
         self.set_plotdata(name='spectrum', data_x=self.f, data_y=sp_data)
 
         if self.iterations != 0:
-            wf_data1 = np.append(self.previous_wf_data1, self.wf_data[0:511])
-            print("Final: " +str(self.previous_wf_data1[len(self.previous_wf_data1)-1])+" Inici: "+str(self.wf_data[0]))
-            wf_data2 = np.append(self.previous_wf_data2, self.wf_data[0:1023])
-            wf_data3 = np.append(self.previous_wf_data3, self.wf_data[0:1535])
+
+            # First auxiliary waveform
+            wf_data1 = np.append(self.previous_wf_data1, self.wf_data[1:512])
 
             fft1 = fft(w(wf_data1))
-            fft2 = fft(w(wf_data2))
-            fft3 = fft(w(wf_data3))
-
             sine_anal1 = sineAnal(fft1)
-            sine_anal2 = sineAnal(fft2)
-            sine_anal3 = sineAnal(fft3)
-
-            ysfreq1 = sine_anal1[0] * freqScaling  # scale of frequencies
-            ysfreq2 = sine_anal2[0] * freqScaling
-            ysfreq3 = sine_anal3[0] * freqScaling
-
-            # Synthesis (with OverlapAdd and IFFT)
+            ysfreq1 = sine_anal1[0] * freqScaling
             fft_synth1 = sineSynth(sine_anal1[1], ysfreq1, sine_anal1[2])  # retorna un frame de 1025 samples
-            fft_synth2 = sineSynth(sine_anal2[1], ysfreq2, sine_anal2[2])  # retorna un frame de 1025 samples
-            fft_synth3 = sineSynth(sine_anal3[1], ysfreq3, sine_anal3[2])  # retorna un frame de 1025 samples
 
             out1 = overl(ifft(fft_synth1))  # Tenim un frame de 512 samples
-            print("Inici out1: " + str(out1[0])+'   Final out1: ' + str(out1[511]))
+
+            print(out1[:10])
+
+            if self.iterations ==150:
+                plt.figure()
+                plt.plot(np.append(self.result[len(self.result)-100:len(self.result)], out1))
+                plt.show()
+
             self.result = np.append(self.result, out1)
 
             repacked1 = struct.pack(str(len(out1)) + 'f', *out1)
             self.y.append(repacked1)
 
+            # Second auxiliary waveform
+            wf_data2 = np.append(self.previous_wf_data2, self.wf_data[1:1024])
+
+            fft2 = fft(w(wf_data2))
+            sine_anal2 = sineAnal(fft2)
+            ysfreq2 = sine_anal2[0] * freqScaling
+            fft_synth2 = sineSynth(sine_anal2[1], ysfreq2, sine_anal2[2])  # retorna un frame de 1025 samples
+
             out2 = overl(ifft(fft_synth2))  # Tenim un frame de 512 samples
-            print("Inici out2: " + str(out2[0]) + '   Final out2: ' + str(out2[511]))
             self.result = np.append(self.result, out2)
 
             repacked2 = struct.pack(str(len(out2)) + 'f', *out2)
             self.y.append(repacked2)
 
+            # Third auxiliary waveform
+            wf_data3 = np.append(self.previous_wf_data3, self.wf_data[1:1536])
+
+            fft3 = fft(w(wf_data3))
+            sine_anal3 = sineAnal(fft3)
+            ysfreq3 = sine_anal3[0] * freqScaling
+            fft_synth3 = sineSynth(sine_anal3[1], ysfreq3, sine_anal3[2])  # retorna un frame de 1025 samples
+
             out3 = overl(ifft(fft_synth3))  # Tenim un frame de 512 samples
-            print("Inici out3: " + str(out3[0]) + '   Final out3: ' + str(out3[511]))
             self.result = np.append(self.result, out3)
 
             repacked3 = struct.pack(str(len(out3)) + 'f', *out3)
@@ -256,7 +263,6 @@ class AudioStream(object):
         self.result = np.append(self.result, out)
 
         repacked = struct.pack(str(len(out)) + 'f', *out)
-
         self.y.append(repacked)
 
         self.iterations += 1
@@ -280,7 +286,6 @@ class AudioStream(object):
         file.writeframes(b''.join(self.y))
         file.close()
 
-        # self.result = self.result * (1 / 60000)
         awrite(self.result)
         awrite2(self.prova)
 
