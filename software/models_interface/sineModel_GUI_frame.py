@@ -203,7 +203,7 @@ class SineModel_frame:
 
             y = np.array([])  # initialize output array
 
-            for frame in es.FrameGenerator(audio=x, frameSize=N, hopSize=H):
+            for frame in es.FrameGenerator(audio=x, frameSize=N, hopSize=H, startFromZero = True):
 
                 # Analysis (with FFT and Windowing)
                 infft = fft(w(frame))
