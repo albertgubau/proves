@@ -49,6 +49,7 @@ class AudioStream(object):
         self.win.show()
 
         self.y = []
+        self.frames = []
         self.result = np.array(0)
         self.results = np.array([])
 
@@ -167,7 +168,6 @@ class AudioStream(object):
 
     def update(self):
 
-        previous_wf_data = self.wf_data
         previous_wf_data1 = self.wf_data[511:2048]
         previous_wf_data2 = self.wf_data[1023:2048]
         previous_wf_data3 = self.wf_data[1535:2048]
@@ -194,7 +194,7 @@ class AudioStream(object):
         sine_anal = sineAnal(fft_signal)  # li entra una fft de 1025 samples
 
         # Frequency scaling values
-        freqScaling = 1
+        freqScaling = 1.5
 
         ysfreq = sine_anal[0] * freqScaling  # scale of frequencies
 
@@ -247,8 +247,9 @@ class AudioStream(object):
 
         self.set_plotdata(name='out', data_x=self.j, data_y=out)
 
-        # Save result
+        # Save result and play it simultaneously
         self.result = np.append(self.result, out)
+        sd.play(self.result[len(self.result)-4096:],44100)
 
         self.iterations += 1
 
@@ -260,24 +261,8 @@ class AudioStream(object):
 
     def saveResult(self):
 
-        # Open and Set the data of the WAV file
-        file = wave.open(self.filename, 'wb')
-        file.setnchannels(self.CHANNELS)
-        # print(self.p.get_sample_size(pyaudio.paInt16))
-        file.setsampwidth(4)
-        file.setframerate(self.RATE)
-
-        # Write and Close the File
-        file.writeframes(b''.join(self.y))
-        file.close()
-
         awrite(self.result)
         awrite2(self.prova)
-
-    def play(self):
-        print("Playing")
-        sd.play(self.result, 44100)
-        sd.wait()
 
 if __name__ == '__main__':
     audio_app = AudioStream()
