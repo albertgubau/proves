@@ -5,13 +5,9 @@ import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore, QtGui
 from PyQt5.QtWidgets import QApplication, QWidget
 
-import matplotlib.pyplot as plt
-
 import struct
 import pyaudio
-import wave
 import sounddevice as sd
-import soundfile as sf
 import sys
 
 # Instantiate the Essentia Algorithms
@@ -108,8 +104,6 @@ class AudioStream(object):
 
         self.prova = np.array([])
 
-        self.filename = "soundsample.wav"
-
         # PyAudio Stuff
         self.FORMAT = pyaudio.paFloat32
         self.CHANNELS = 1  # Mono
@@ -148,23 +142,24 @@ class AudioStream(object):
         else:
             if name == 'waveform':
                 self.traces[name] = self.waveform.plot(pen='c', width=3)
-                # self.waveform.setYRange(-60000, 60000, padding=0)
+                self.waveform.setYRange(-0.05, 0.05, padding=0)
                 self.waveform.setXRange(0, self.CHUNK, padding=0.005)
 
             if name == 'w_waveform':
                 self.traces[name] = self.w_waveform.plot(pen='c', width=3)
-                # self.w_waveform.setYRange(0, 1, padding=0)
+                self.w_waveform.setYRange(-5e-5, 5e-5, padding=0)
                 self.w_waveform.setXRange(0, self.CHUNK, padding=0.005)
 
             if name == 'spectrum':
                 self.traces[name] = self.spectrum.plot(pen='m', width=3)
                 self.spectrum.setLogMode(x=True, y=True)
+                self.spectrum.setYRange(np.log10(0.001), np.log10(20), padding=0)
                 self.spectrum.setXRange(np.log10(20), np.log10(self.RATE / 2), padding=0.005)
 
             if name == 'out':
                 self.traces[name] = self.out.plot(pen='c', width=3)
-                # self.w_waveform.setYRange(0, 1, padding=0)
-                self.w_waveform.setXRange(0, self.CHUNK, padding=0.005)
+                self.out.setYRange(-0.02, 0.02, padding=0)
+                self.out.setXRange(0, self.CHUNK//4, padding=0.005)
 
     def update(self):
 
@@ -249,9 +244,9 @@ class AudioStream(object):
 
         # Save result and play it simultaneously
         self.result = np.append(self.result, out)
-        sd.play(self.result[len(self.result)-4096:],44100)
+        sd.play(5 * self.result[len(self.result) - 8000:], 44100)
 
-        self.iterations += 1
+        self.iterations = 1
 
     def animation(self):
         timer = QtCore.QTimer()
@@ -268,4 +263,3 @@ if __name__ == '__main__':
     audio_app = AudioStream()
     audio_app.animation()
     audio_app.saveResult()
-    audio_app.play()
