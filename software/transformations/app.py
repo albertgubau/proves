@@ -1,9 +1,18 @@
+import sys
+
+from PyQt5.QtCore import Qt
+
+import time
+
+from PyQt5.QtWidgets import *
+
+from pyqtgraph.Qt import QtCore
+
+import pyqtgraph as pg
+
 import numpy as np
 
 import essentia.standard as es
-import pyqtgraph as pg
-from pyqtgraph.Qt import QtCore, QtGui
-from PyQt5.QtWidgets import QApplication, QWidget
 
 import struct
 import pyaudio
@@ -31,18 +40,58 @@ awrite = es.MonoWriter(filename='output.wav', sampleRate=44100)
 awrite2 = es.MonoWriter(filename='prova.wav', sampleRate=44100)
 
 
-class AudioStream(object):
+class Slider(QWidget):
+    def __init__(self, minimum, maximum, parent=None):
+        super(Slider, self).__init__(parent=parent)
+        self.verticalLayout = QVBoxLayout(self)
+        self.label = QLabel(self)
+        self.verticalLayout.addWidget(self.label)
+        self.horizontalLayout = QHBoxLayout()
+        spacerItem = QSpacerItem(0, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+        self.horizontalLayout.addItem(spacerItem)
+        self.slider = QSlider(self)
+        self.slider.setOrientation(Qt.Vertical)
+        self.horizontalLayout.addWidget(self.slider)
+        spacerItem1 = QSpacerItem(0, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+        self.horizontalLayout.addItem(spacerItem1)
+        self.verticalLayout.addLayout(self.horizontalLayout)
+        self.resize(self.sizeHint())
+
+        self.minimum = minimum
+        self.maximum = maximum
+        self.slider.valueChanged.connect(self.setLabelValue)
+        self.x = None
+        self.setLabelValue(self.slider.value())
+
+    def setLabelValue(self, value):
+        self.x = self.minimum + (float(value) / (self.slider.maximum() - self.slider.minimum())) * (
+        self.maximum - self.minimum)
+        self.label.setText("{0:.4g}".format(self.x))
+
+class Window(QWidget):
     def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Audio App")
 
-        # Initialize the Qt Application
+        # Create a QHBoxLayout instance
+        layout = QHBoxLayout()
+
+        # Add Widgets to the Layout
+        self.slider = Slider(0,2)
+        layout.addWidget(self.slider)
+
+        # Set the Layout on the application window
+        self.setLayout(layout)
+
         pg.setConfigOptions(antialias=True)
-        self.traces = dict()
-        self.app = QApplication(sys.argv)
-
-        self.win = pg.GraphicsLayoutWidget(title='Spectrum Analyzer')
+        self.win = pg.GraphicsLayoutWidget()
         self.win.setWindowTitle('Spectrum Analyzer')
-        self.win.setGeometry(5, 115, 1000, 600)
-        self.win.show()
+        layout.addWidget(self.win)
+
+
+
+        # OLD CODE FROM PREVIOUS APP
+        self.traces = dict()
 
         self.y = []
         self.frames = []
@@ -116,7 +165,7 @@ class AudioStream(object):
         )
 
         # Waveform and Spectrum x-axis points (bins and Hz)
-        self.x = np.arange(0, self.CHUNK)
+        self.freqs = np.arange(0, self.CHUNK)
         # Waveform and Spectrum x-axis points (bins and Hz)
         self.z = np.arange(0, self.CHUNK)
         # Waveform and Spectrum x-axis points (bins and Hz)
@@ -155,7 +204,7 @@ class AudioStream(object):
                 self.out.setYRange(-0.02, 0.02, padding=0)
                 self.out.setXRange(0, self.CHUNK//4, padding=0.005)
 
-    def update(self):
+    def update_plots(self):
 
         previous_wf_data1 = self.wf_data[511:2048]
         previous_wf_data2 = self.wf_data[1023:2048]
@@ -171,7 +220,7 @@ class AudioStream(object):
         self.prova = np.append(self.prova, self.wf_data)
 
         # Aqui hem llegit un frame de 2048 samples provinent del micro, el plotegem
-        self.set_plotdata(name='waveform', data_x=self.x, data_y=self.wf_data)
+        self.set_plotdata(name='waveform', data_x=self.freqs, data_y=self.wf_data)
 
         # Li apliquem windowing i ho plotegem
         self.set_plotdata(name='w_waveform', data_x=self.z, data_y=w(self.wf_data))
@@ -184,8 +233,8 @@ class AudioStream(object):
 
         # Frequency scaling values
         freqScaling = 1.5
-
-        ysfreq = sine_anal[0] * freqScaling  # scale of frequencies
+        print(type(self.slider.x))
+        ysfreq = sine_anal[0] * self.slider.x # scale of frequencies
 
         # Synthesis (with OverlapAdd and IFFT)
         fft_synth = sineSynth(sine_anal[1], ysfreq, sine_anal[2])  # retorna un frame de 1025 samples
@@ -201,30 +250,27 @@ class AudioStream(object):
 
             fft1 = fft(w(wf_data1))
             sine_anal1 = sineAnal(fft1)
-            ysfreq1 = sine_anal1[0] * freqScaling
+            ysfreq1 = sine_anal1[0] * self.slider.x
             fft_synth1 = sineSynth(sine_anal1[1], ysfreq1, sine_anal1[2])  # retorna un frame de 1025 samples
 
             out1 = overl(ifft(fft_synth1))  # Tenim un frame de 512 samples
-
-            #self.result = np.append(self.result, out1)
 
             # Second auxiliary waveform
             wf_data2 = np.append(previous_wf_data2, self.wf_data[1:1024])
 
             fft2 = fft(w(wf_data2))
             sine_anal2 = sineAnal(fft2)
-            ysfreq2 = sine_anal2[0] * freqScaling
+            ysfreq2 = sine_anal2[0] * self.slider.x
             fft_synth2 = sineSynth(sine_anal2[1], ysfreq2, sine_anal2[2])  # retorna un frame de 1025 samples
 
             out2 = overl(ifft(fft_synth2))  # Tenim un frame de 512 samples
-            #self.result = np.append(self.result, out2)
 
             # Third auxiliary waveform
             wf_data3 = np.append(previous_wf_data3, self.wf_data[1:1536])
 
             fft3 = fft(w(wf_data3))
             sine_anal3 = sineAnal(fft3)
-            ysfreq3 = sine_anal3[0] * freqScaling
+            ysfreq3 = sine_anal3[0] * self.slider.x
             fft_synth3 = sineSynth(sine_anal3[1], ysfreq3, sine_anal3[2])  # retorna un frame de 1025 samples
 
             out3 = overl(ifft(fft_synth3))  # Tenim un frame de 512 samples
@@ -238,22 +284,26 @@ class AudioStream(object):
 
         # Save result and play it simultaneously
         self.result = np.append(self.result, out)
-        sd.play(5 * self.result[len(self.result) - 8000:], 44100)
-
+        
+        sd.play( self.result[len(self.result) - 4096:], 44100)
+        time.sleep(0.01)
         self.iterations = 1
 
     def animation(self):
         timer = QtCore.QTimer()
-        timer.timeout.connect(self.update)
+        timer.timeout.connect(self.update_plots)
         timer.start(20)
         self.start()
 
     def saveResult(self):
-
         awrite(self.result)
         awrite2(self.prova)
 
-if __name__ == '__main__':
-    audio_app = AudioStream()
-    audio_app.animation()
-    audio_app.saveResult()
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    window = Window()
+    window.show()
+    window.animation()
+    window.saveResult()
+
+    sys.exit(app.exec_())
