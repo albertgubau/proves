@@ -64,6 +64,7 @@ class Slider(QWidget):
         self.setLabelValue(self.slider.value())
 
     def setLabelValue(self, value):
+
         self.x = self.minimum + (float(value) / (self.slider.maximum() - self.slider.minimum())) * (
         self.maximum - self.minimum)
         self.label.setText("{0:.4g}".format(self.x))
@@ -233,7 +234,7 @@ class Window(QWidget):
 
         # Frequency scaling values
         freqScaling = 1.5
-        print(type(self.slider.x))
+        print(self.slider.x)
         ysfreq = sine_anal[0] * self.slider.x # scale of frequencies
 
         # Synthesis (with OverlapAdd and IFFT)
@@ -284,8 +285,12 @@ class Window(QWidget):
 
         # Save result and play it simultaneously
         self.result = np.append(self.result, out)
-        
-        sd.play( self.result[len(self.result) - 4096:], 44100)
+
+        #We cut the signal to not lag the program with large arrays
+        #if(len(self.result)>=4097):
+            #self.result = self.result[len(self.result) - 4096:]
+
+        sd.play(self.result[len(self.result)-4096:], 44100)
         time.sleep(0.01)
         self.iterations = 1
 
