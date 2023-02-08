@@ -1,23 +1,16 @@
 import sys
 
 from PyQt5.QtCore import Qt
-
-import time
-
 from PyQt5.QtWidgets import *
-
 from pyqtgraph.Qt import QtCore
-
 import pyqtgraph as pg
-
 import numpy as np
-
 import essentia.standard as es
-
 import struct
 import pyaudio
 import sounddevice as sd
 import sys
+import time
 
 # Instantiate the Essentia Algorithms
 w = es.Windowing(type='hamming', size=2048)
@@ -64,10 +57,10 @@ class Slider(QWidget):
         self.setLabelValue(self.slider.value())
 
     def setLabelValue(self, value):
-
         self.x = self.minimum + (float(value) / (self.slider.maximum() - self.slider.minimum())) * (
-        self.maximum - self.minimum)
+                self.maximum - self.minimum)
         self.label.setText("{0:.4g}".format(self.x))
+
 
 class Window(QWidget):
     def __init__(self):
@@ -78,7 +71,7 @@ class Window(QWidget):
         layout = QHBoxLayout()
 
         # Add Widgets to the Layout
-        self.slider = Slider(0,2)
+        self.slider = Slider(0, 2)
         layout.addWidget(self.slider)
 
         # Set the Layout on the application window
@@ -88,8 +81,6 @@ class Window(QWidget):
         self.win = pg.GraphicsLayoutWidget()
         self.win.setWindowTitle('Spectrum Analyzer')
         layout.addWidget(self.win)
-
-
 
         # OLD CODE FROM PREVIOUS APP
         self.traces = dict()
@@ -203,7 +194,7 @@ class Window(QWidget):
             if name == 'out':
                 self.traces[name] = self.out.plot(pen='c', width=3)
                 self.out.setYRange(-0.02, 0.02, padding=0)
-                self.out.setXRange(0, self.CHUNK//4, padding=0.005)
+                self.out.setXRange(0, self.CHUNK // 4, padding=0.005)
 
     def update_plots(self):
 
@@ -235,7 +226,7 @@ class Window(QWidget):
         # Frequency scaling values
         freqScaling = 1.5
         print(self.slider.x)
-        ysfreq = sine_anal[0] * self.slider.x # scale of frequencies
+        ysfreq = sine_anal[0] * self.slider.x  # scale of frequencies
 
         # Synthesis (with OverlapAdd and IFFT)
         fft_synth = sineSynth(sine_anal[1], ysfreq, sine_anal[2])  # retorna un frame de 1025 samples
@@ -245,7 +236,6 @@ class Window(QWidget):
         self.set_plotdata(name='spectrum', data_x=self.f, data_y=sp_data)
 
         if self.iterations != 0:
-
             # First auxiliary waveform
             wf_data1 = np.append(previous_wf_data1, self.wf_data[1:512])
 
@@ -286,11 +276,11 @@ class Window(QWidget):
         # Save result and play it simultaneously
         self.result = np.append(self.result, out)
 
-        #We cut the signal to not lag the program with large arrays
-        #if(len(self.result)>=4097):
-            #self.result = self.result[len(self.result) - 4096:]
+        # We cut the signal to not lag the program with large arrays
+        # if(len(self.result)>=4097):
+        # self.result = self.result[len(self.result) - 4096:]
 
-        sd.play(self.result[len(self.result)-4096:], 44100)
+        sd.play(self.result[len(self.result) - 4096:], 44100)
         time.sleep(0.01)
         self.iterations = 1
 
@@ -303,6 +293,7 @@ class Window(QWidget):
     def saveResult(self):
         awrite(self.result)
         awrite2(self.prova)
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
